@@ -1,6 +1,6 @@
 services:
   gateway:
-    build: ./gateway
+    image: 192.168.1.250:5500/ppt-remote-gateway:v1
     ports:
       - "5000:5000"
     environment:
