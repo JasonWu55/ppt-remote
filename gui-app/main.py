@@ -97,23 +97,45 @@ class App(ctk.CTk):
         self._gw_label.pack(pady=2)
 
         btn_frame = ctk.CTkFrame(self, fg_color='transparent')
-        btn_frame.pack(pady=14)
+        btn_frame.pack(pady=10)
 
         ctk.CTkButton(
             btn_frame, text='重新產生 PIN', width=130,
             command=self._regenerate_pin
-        ).grid(row=0, column=0, padx=5)
+        ).grid(row=0, column=0, padx=5, pady=4)
 
         ctk.CTkButton(
             btn_frame, text='斷線重連', width=110,
             command=self._reconnect
-        ).grid(row=0, column=1, padx=5)
+        ).grid(row=0, column=1, padx=5, pady=4)
 
         ctk.CTkButton(
             btn_frame, text='設定', width=90,
             fg_color='gray', hover_color='#555',
             command=self._open_settings
-        ).grid(row=0, column=2, padx=5)
+        ).grid(row=0, column=2, padx=5, pady=4)
+
+        self._copy_btn = ctk.CTkButton(
+            btn_frame, text='複製連結', width=340,
+            fg_color='#2d5a27', hover_color='#3a7a33',
+            command=self._copy_link, state='disabled'
+        )
+        self._copy_btn.grid(row=1, column=0, columnspan=3, padx=5, pady=4)
+
+    # ── Link ─────────────────────────────────────────────────────────────────
+
+    def _copy_link(self):
+        url = self._cfg['gateway_url']
+        http_url = url.replace('wss://', 'https://').replace('ws://', 'http://')
+        room = self._room_label.cget('text')
+        pin = self._pin_label.cget('text')
+        if room == '----' or pin == '----':
+            return
+        link = f'{http_url}/?room={room}&pin={pin}'
+        self.clipboard_clear()
+        self.clipboard_append(link)
+        self._copy_btn.configure(text='已複製！')
+        self.after(2000, lambda: self._copy_btn.configure(text='複製連結'))
 
     # ── Settings ─────────────────────────────────────────────────────────────
 
@@ -161,6 +183,7 @@ class App(ctk.CTk):
     def _on_connect(self):
         self.after(0, lambda: self._status_label.configure(
             text='狀態：● 已連線 Gateway', text_color='green'))
+        self.after(0, lambda: self._copy_btn.configure(state='normal'))
 
     def _on_mobile_count(self, count: int):
         self.after(0, lambda: self._clients_label.configure(
@@ -169,6 +192,7 @@ class App(ctk.CTk):
     def _on_disconnect(self):
         self.after(0, lambda: self._status_label.configure(
             text='狀態：● 斷線，自動重連中...', text_color='red'))
+        self.after(0, lambda: self._copy_btn.configure(state='disabled'))
 
     def _regenerate_pin(self):
         if self._connector:

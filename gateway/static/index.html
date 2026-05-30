@@ -76,18 +76,30 @@
   </div>
 
   <script>
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = io(`${proto}://${location.host}`, { autoConnect: false });
-    let roomId = '', pin = '', retries = 0;
-    const MAX_RETRIES = 5;
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    var socket = io(proto + '://' + location.host, { autoConnect: false });
+    var roomId = '', pin = '', retries = 0;
+    var MAX_RETRIES = 5;
+
+    // Auto-fill and connect from URL params (?room=A7X2&pin=8341)
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var r = params.get('room') || '';
+      var p = params.get('pin') || '';
+      if (r) document.getElementById('input-room').value = r;
+      if (p) document.getElementById('input-pin').value = p;
+      if (r && p) connect();
+    })();
 
     function showScreen(id) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(function(s) {
+        s.classList.remove('active');
+      });
       document.getElementById(id).classList.add('active');
     }
 
     function setStatus(connected) {
-      const dot = document.getElementById('status-dot');
+      var dot = document.getElementById('status-dot');
       dot.className = 'dot' + (connected ? '' : ' red');
       document.getElementById('status-text').textContent = connected ? '已連線' : '重新連線中...';
     }
@@ -100,14 +112,14 @@
     }
 
     function sendKey(action) {
-      socket.emit('key', { action });
+      socket.emit('key', { action: action });
     }
 
-    socket.on('connect', () => {
-      socket.emit('join', { room_id: roomId, pin });
+    socket.on('connect', function() {
+      socket.emit('join', { room_id: roomId, pin: pin });
     });
 
-    socket.on('join_result', (data) => {
+    socket.on('join_result', function(data) {
       if (data.success) {
         retries = 0;
         showScreen('screen-remote');
@@ -119,17 +131,17 @@
       }
     });
 
-    socket.on('host_disconnected', () => {
+    socket.on('host_disconnected', function() {
       setStatus(false);
       document.getElementById('status-text').textContent = '主機已離線';
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', function() {
       if (document.getElementById('screen-remote').classList.contains('active')) {
         setStatus(false);
         if (retries < MAX_RETRIES) {
           retries++;
-          setTimeout(() => socket.connect(), Math.min(1000 * retries, 16000));
+          setTimeout(function() { socket.connect(); }, Math.min(1000 * retries, 16000));
         }
       }
     });
