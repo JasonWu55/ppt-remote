@@ -15,6 +15,11 @@ def index():
     return send_from_directory(os.path.dirname(__file__), 'static/index.html')
 
 
+@app.route('/socket.io.js')
+def socketio_js():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'socket.io.js')
+
+
 def _get_client_ip() -> str:
     raw = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     if raw is None:
