@@ -1,12 +1,18 @@
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room
 from rooms import RoomManager
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ppt-remote'
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
 room_manager = RoomManager()
+
+
+@app.route('/')
+def index():
+    return send_from_directory(os.path.dirname(__file__), 'static/index.html')
 
 
 def _get_client_ip() -> str:
@@ -77,4 +83,4 @@ def on_disconnect():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PPT Remote</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 24px; color: #ccc; }
+    .screen { width: 100%; max-width: 360px; display: none; flex-direction: column; gap: 16px; }
+    .screen.active { display: flex; }
+    input {
+      width: 100%; padding: 14px; border-radius: 10px;
+      border: 1px solid #444; background: #2a2a2a;
+      color: #fff; font-size: 1.2rem; text-align: center; letter-spacing: 4px;
+    }
+    .btn {
+      width: 100%; padding: 20px; border-radius: 14px; border: none;
+      font-size: 1.3rem; font-weight: 600; cursor: pointer; min-height: 80px;
+      transition: opacity 0.1s; user-select: none;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary { background: #4a90e2; color: #fff; }
+    .btn-green   { background: #27ae60; color: #fff; }
+    .btn-red     { background: #c0392b; color: #fff; }
+    .btn-row { display: flex; gap: 12px; }
+    .btn-row .btn { flex: 1; }
+    .status {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.9rem; color: #aaa; justify-content: center;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #27ae60; }
+    .dot.red { background: #c0392b; }
+    .error { color: #e74c3c; text-align: center; font-size: 0.9rem; min-height: 20px; }
+    label { color: #888; font-size: 0.85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>PPT Remote</h1>
+
+  <!-- Login Screen -->
+  <div class="screen active" id="screen-login">
+    <label>Room ID</label>
+    <input type="text" id="input-room" placeholder="A7X2" maxlength="4"
+           autocomplete="off" autocapitalize="characters">
+    <label>PIN</label>
+    <input type="tel" id="input-pin" placeholder="8341" maxlength="4">
+    <button class="btn btn-primary" onclick="connect()">連線</button>
+    <p class="error" id="login-error"></p>
+  </div>
+
+  <!-- Remote Control Screen -->
+  <div class="screen" id="screen-remote">
+    <div class="status">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">已連線</span>
+    </div>
+    <button class="btn btn-green" onclick="sendKey('start')">▶ 開始簡報</button>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="sendKey('prev')">◀ 上一頁</button>
+      <button class="btn btn-primary" onclick="sendKey('next')">下一頁 ▶</button>
+    </div>
+    <button class="btn btn-red" onclick="sendKey('end')">■ 結束簡報</button>
+  </div>
+
+  <script>
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = io(`${proto}://${location.host}`, { autoConnect: false });
+    let roomId = '', pin = '', retries = 0;
+    const MAX_RETRIES = 5;
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function setStatus(connected) {
+      const dot = document.getElementById('status-dot');
+      dot.className = 'dot' + (connected ? '' : ' red');
+      document.getElementById('status-text').textContent = connected ? '已連線' : '重新連線中...';
+    }
+
+    function connect() {
+      roomId = document.getElementById('input-room').value.toUpperCase().trim();
+      pin    = document.getElementById('input-pin').value.trim();
+      document.getElementById('login-error').textContent = '';
+      socket.connect();
+    }
+
+    function sendKey(action) {
+      socket.emit('key', { action });
+    }
+
+    socket.on('connect', () => {
+      socket.emit('join', { room_id: roomId, pin });
+    });
+
+    socket.on('join_result', (data) => {
+      if (data.success) {
+        retries = 0;
+        showScreen('screen-remote');
+        setStatus(true);
+      } else {
+        socket.disconnect();
+        document.getElementById('login-error').textContent =
+          data.reason === 'blocked' ? 'IP 已暫時封鎖，請稍後再試' : 'Room ID 或 PIN 錯誤';
+      }
+    });
+
+    socket.on('host_disconnected', () => {
+      setStatus(false);
+      document.getElementById('status-text').textContent = '主機已離線';
+    });
+
+    socket.on('disconnect', () => {
+      if (document.getElementById('screen-remote').classList.contains('active')) {
+        setStatus(false);
+        if (retries < MAX_RETRIES) {
+          retries++;
+          setTimeout(() => socket.connect(), Math.min(1000 * retries, 16000));
+        }
+      }
+    });
+  </script>
+</body>
+</html>
