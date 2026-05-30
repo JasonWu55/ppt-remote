@@ -108,6 +108,21 @@ def test_gui_disconnect_notifies_mobile(gui_client, mobile_client):
     assert mob_received[0]['name'] == 'host_disconnected'
 
 
+def test_client_update_sent_to_gui_on_mobile_disconnect(gui_client, mobile_client):
+    gui_client.emit('register', {'pin': '1234'})
+    room_id = gui_client.get_received()[0]['args'][0]['room_id']
+
+    mobile_client.emit('join', {'room_id': room_id, 'pin': '1234'})
+    mobile_client.get_received()
+    gui_client.get_received()  # clear client_update from join
+
+    mobile_client.disconnect()
+
+    gui_received = gui_client.get_received()
+    assert gui_received[0]['name'] == 'client_update'
+    assert gui_received[0]['args'][0]['count'] == 0
+
+
 def test_key_ignored_if_not_joined(mobile_client):
     mobile_client.emit('key', {'action': 'next'})
     # No crash, no relay (nothing to assert except no exception)

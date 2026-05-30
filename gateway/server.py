@@ -10,7 +10,10 @@ room_manager = RoomManager()
 
 
 def _get_client_ip() -> str:
-    return request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    raw = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    if raw is None:
+        return '127.0.0.1'
+    return raw.split(',')[0].strip()
 
 
 @socketio.on('register')
@@ -62,7 +65,7 @@ def on_disconnect():
     if role == 'gui':
         result = room_manager.remove_gui(request.sid)
         if result:
-            room_id, mobile_sids = result
+            removed_room_id, mobile_sids = result
             for sid in mobile_sids:
                 emit('host_disconnected', {}, to=sid)
     else:
