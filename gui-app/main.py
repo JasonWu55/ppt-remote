@@ -1,4 +1,3 @@
-import os
 import random
 import threading
 import customtkinter as ctk
@@ -6,8 +5,7 @@ import pystray
 from PIL import Image, ImageDraw
 from connector import Connector
 from keyboard import press
-
-GATEWAY_URL = os.environ.get('PPT_REMOTE_GATEWAY', 'ws://localhost:5000')
+import config
 
 ctk.set_appearance_mode('dark')
 ctk.set_default_color_theme('blue')
@@ -20,17 +18,49 @@ def _make_tray_icon() -> Image.Image:
     return img
 
 
+class SettingsDialog(ctk.CTkToplevel):
+    def __init__(self, parent: 'App'):
+        super().__init__(parent)
+        self._app = parent
+        self.title('設定')
+        self.geometry('380x160')
+        self.resizable(False, False)
+        self.grab_set()
+
+        cfg = config.load()
+
+        ctk.CTkLabel(self, text='Gateway URL').pack(pady=(20, 4))
+        self._url_entry = ctk.CTkEntry(self, width=320)
+        self._url_entry.insert(0, cfg['gateway_url'])
+        self._url_entry.pack()
+
+        btn = ctk.CTkFrame(self, fg_color='transparent')
+        btn.pack(pady=16)
+        ctk.CTkButton(btn, text='儲存', width=120,
+                      command=self._save).grid(row=0, column=0, padx=8)
+        ctk.CTkButton(btn, text='取消', width=120, fg_color='gray',
+                      command=self.destroy).grid(row=0, column=1, padx=8)
+
+    def _save(self):
+        url = self._url_entry.get().strip()
+        if url:
+            config.save({'gateway_url': url})
+            self._app.apply_settings()
+        self.destroy()
+
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title('PPT Remote')
-        self.geometry('420x320')
+        self.geometry('420x350')
         self.resizable(False, False)
         self.protocol('WM_DELETE_WINDOW', self._on_close)
 
         self._tray: pystray.Icon | None = None
         self._connector: Connector | None = None
         self._mobile_count = 0
+        self._cfg = config.load()
 
         self._build_ui()
         self._start_connector()
@@ -62,22 +92,45 @@ class App(ctk.CTk):
         self._clients_label.pack(pady=4)
 
         self._gw_label = ctk.CTkLabel(
-            self, text=f'Gateway：{GATEWAY_URL}', text_color='gray',
-            font=ctk.CTkFont(size=11))
+            self, text=f'Gateway：{self._cfg["gateway_url"]}',
+            text_color='gray', font=ctk.CTkFont(size=11))
         self._gw_label.pack(pady=2)
 
         btn_frame = ctk.CTkFrame(self, fg_color='transparent')
         btn_frame.pack(pady=14)
 
         ctk.CTkButton(
-            btn_frame, text='重新產生 PIN', width=140,
+            btn_frame, text='重新產生 PIN', width=130,
             command=self._regenerate_pin
-        ).grid(row=0, column=0, padx=6)
+        ).grid(row=0, column=0, padx=5)
 
         ctk.CTkButton(
-            btn_frame, text='斷線重連', width=140,
+            btn_frame, text='斷線重連', width=110,
             command=self._reconnect
-        ).grid(row=0, column=1, padx=6)
+        ).grid(row=0, column=1, padx=5)
+
+        ctk.CTkButton(
+            btn_frame, text='設定', width=90,
+            fg_color='gray', hover_color='#555',
+            command=self._open_settings
+        ).grid(row=0, column=2, padx=5)
+
+    # ── Settings ─────────────────────────────────────────────────────────────
+
+    def _open_settings(self):
+        SettingsDialog(self)
+
+    def apply_settings(self):
+        self._cfg = config.load()
+        self._gw_label.configure(text=f'Gateway：{self._cfg["gateway_url"]}')
+        self._reconnect_with_new_url()
+
+    def _reconnect_with_new_url(self):
+        if self._connector:
+            self._connector.disconnect()
+        self._room_label.configure(text='----')
+        self._pin_label.configure(text='----')
+        self._start_connector()
 
     # ── Connector lifecycle ──────────────────────────────────────────────────
 
@@ -88,7 +141,7 @@ class App(ctk.CTk):
         if pin is None:
             pin = self._new_pin()
         self._connector = Connector(
-            gateway_url=GATEWAY_URL,
+            gateway_url=self._cfg['gateway_url'],
             pin=pin,
             on_room_ready=self._on_room_ready,
             on_key=self._on_key,
