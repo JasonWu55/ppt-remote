@@ -19,7 +19,7 @@ class RoomManager:
         self._client_role[gui_sid] = ('gui', room_id)
         return room_id
 
-    def join_room(self, room_id: str, pin: str, mobile_sid: str, ip: str):
+    def join_room(self, room_id: str, pin: str, mobile_sid: str, ip: str) -> tuple[bool, str | None]:
         if self._is_blocked(ip):
             return False, 'blocked'
         if room_id not in self._rooms or self._rooms[room_id]['pin'] != pin:
@@ -32,10 +32,10 @@ class RoomManager:
     def get_gui_sid(self, room_id: str) -> str | None:
         return self._rooms.get(room_id, {}).get('gui_sid')
 
-    def get_mobile_sids(self, room_id: str) -> set:
-        return self._rooms.get(room_id, {}).get('mobile_sids', set())
+    def get_mobile_sids(self, room_id: str) -> set[str]:
+        return set(self._rooms.get(room_id, {}).get('mobile_sids', set()))
 
-    def remove_gui(self, gui_sid: str):
+    def remove_gui(self, gui_sid: str) -> tuple[str, set] | None:
         entry = self._client_role.pop(gui_sid, None)
         if entry is None:
             return None
@@ -48,7 +48,7 @@ class RoomManager:
             self._client_role.pop(sid, None)
         return room_id, mobile_sids
 
-    def remove_mobile(self, mobile_sid: str):
+    def remove_mobile(self, mobile_sid: str) -> None:
         entry = self._client_role.pop(mobile_sid, None)
         if entry is None:
             return
