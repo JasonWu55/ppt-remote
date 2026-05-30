@@ -32,6 +32,10 @@ def on_join(data):
     )
     if success:
         join_room(room_id)
+        gui_sid = room_manager.get_gui_sid(room_id)
+        count = len(room_manager.get_mobile_sids(room_id))
+        if gui_sid:
+            emit('client_update', {'count': count}, to=gui_sid)
     emit('join_result', {'success': success, 'reason': reason})
 
 

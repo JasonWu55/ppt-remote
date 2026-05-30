@@ -59,13 +59,26 @@ def test_key_relayed_to_gui(gui_client, mobile_client):
     room_id = gui_client.get_received()[0]['args'][0]['room_id']
 
     mobile_client.emit('join', {'room_id': room_id, 'pin': '1234'})
-    mobile_client.get_received()  # clear join_result
+    mobile_client.get_received()  # clear mobile's join_result
+    gui_client.get_received()     # clear GUI's client_update from join
 
     mobile_client.emit('key', {'action': 'next'})
 
     gui_received = gui_client.get_received()
     assert gui_received[0]['name'] == 'key'
     assert gui_received[0]['args'][0]['action'] == 'next'
+
+
+def test_client_update_sent_to_gui_on_mobile_join(gui_client, mobile_client):
+    gui_client.emit('register', {'pin': '1234'})
+    room_id = gui_client.get_received()[0]['args'][0]['room_id']
+
+    mobile_client.emit('join', {'room_id': room_id, 'pin': '1234'})
+    mobile_client.get_received()  # clear join_result
+
+    gui_received = gui_client.get_received()
+    assert gui_received[0]['name'] == 'client_update'
+    assert gui_received[0]['args'][0]['count'] == 1
 
 
 def test_key_ack_sent_to_mobile(gui_client, mobile_client):
