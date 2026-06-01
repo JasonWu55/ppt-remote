@@ -28,8 +28,6 @@ jobs:
           name: ppt-remote-windows
           path: gui-app/dist/ppt-remote.exe
 
-  # Build on ubuntu-20.04 (glibc 2.31) for broadest Linux compatibility
-  # Works on: Debian 11+, Ubuntu 20.04+, Fedora 33+, RHEL 8+, Arch, etc.
   build-linux:
     runs-on: ubuntu-22.04
     steps:
@@ -53,9 +51,7 @@ jobs:
           name: ppt-remote-linux
           path: gui-app/dist/ppt-remote
 
-  # Produces ppt-remote.dmg — drag ppt-remote.app to Applications
-  # Note: Gatekeeper will block unsigned app; right-click → Open to bypass
-  build-macos:
+  build-macos-arm:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,15 +73,43 @@ jobs:
             -volname "PPT Remote" \
             -srcfolder "gui-app/dist/ppt-remote.app" \
             -ov -format UDZO \
-            "gui-app/dist/ppt-remote-macos.dmg"
+            "gui-app/dist/ppt-remote-macos-arm.dmg"
       - uses: actions/upload-artifact@v4
         with:
-          name: ppt-remote-macos
-          path: gui-app/dist/ppt-remote-macos.dmg
+          name: ppt-remote-macos-arm
+          path: gui-app/dist/ppt-remote-macos-arm.dmg
+
+  build-macos-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          cd gui-app
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Build .app bundle
+        run: |
+          cd gui-app
+          pyinstaller --onedir --windowed --name ppt-remote main.py
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname "PPT Remote" \
+            -srcfolder "gui-app/dist/ppt-remote.app" \
+            -ov -format UDZO \
+            "gui-app/dist/ppt-remote-macos-intel.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ppt-remote-macos-intel
+          path: gui-app/dist/ppt-remote-macos-intel.dmg
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos-arm, build-macos-intel]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -100,18 +124,24 @@ jobs:
           path: dist/linux/
       - uses: actions/download-artifact@v4
         with:
-          name: ppt-remote-macos
-          path: dist/macos/
+          name: ppt-remote-macos-arm
+          path: dist/macos-arm/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ppt-remote-macos-intel
+          path: dist/macos-intel/
       - name: Prepare release assets
         run: |
-          cp dist/windows/ppt-remote.exe dist/ppt-remote-windows.exe
-          cp dist/linux/ppt-remote       dist/ppt-remote-linux
-          cp dist/macos/ppt-remote-macos.dmg dist/ppt-remote-macos.dmg
+          cp dist/windows/ppt-remote.exe            dist/ppt-remote-windows.exe
+          cp dist/linux/ppt-remote                  dist/ppt-remote-linux
+          cp dist/macos-arm/ppt-remote-macos-arm.dmg     dist/ppt-remote-macos-arm.dmg
+          cp dist/macos-intel/ppt-remote-macos-intel.dmg dist/ppt-remote-macos-intel.dmg
           chmod +x dist/ppt-remote-linux
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/ppt-remote-windows.exe
             dist/ppt-remote-linux
-            dist/ppt-remote-macos.dmg
+            dist/ppt-remote-macos-arm.dmg
+            dist/ppt-remote-macos-intel.dmg
           generate_release_notes: true
