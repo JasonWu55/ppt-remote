@@ -6,7 +6,7 @@ _CONFIG_DIR = Path.home() / '.ppt-remote'
 _CONFIG_FILE = _CONFIG_DIR / 'config.json'
 
 DEFAULTS = {
-    'gateway_url': os.environ.get('PPT_REMOTE_GATEWAY', 'ws://localhost:5000'),
+    'gateway_url': os.environ.get('PPT_REMOTE_GATEWAY', 'wss://ppt.whl.tw'),
 }
 
 
