@@ -1,10 +1,11 @@
-import random
+import secrets
 import string
 from datetime import datetime, timedelta
 
 MAX_FAILURES = 10
 BLOCK_SECONDS = 60
 ROOM_ID_LEN = 4
+MAX_MOBILE_PER_ROOM = 10
 
 
 class RoomManager:
@@ -25,6 +26,8 @@ class RoomManager:
         if room_id not in self._rooms or self._rooms[room_id]['pin'] != pin:
             self._record_failure(ip)
             return False, 'invalid'
+        if len(self._rooms[room_id]['mobile_sids']) >= MAX_MOBILE_PER_ROOM:
+            return False, 'room_full'
         self._rooms[room_id]['mobile_sids'].add(mobile_sid)
         self._client_role[mobile_sid] = ('mobile', room_id)
         return True, None
@@ -66,7 +69,7 @@ class RoomManager:
     def _gen_room_id(self) -> str:
         chars = string.ascii_uppercase + string.digits
         while True:
-            room_id = ''.join(random.choices(chars, k=ROOM_ID_LEN))
+            room_id = ''.join(secrets.choice(chars) for _ in range(ROOM_ID_LEN))
             if room_id not in self._rooms:
                 return room_id
 

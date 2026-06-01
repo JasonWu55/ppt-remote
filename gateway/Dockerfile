@@ -8,6 +8,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY rooms.py server.py ./
 COPY static/ static/
 
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
+
 EXPOSE 5000
 
 CMD ["python", "server.py"]

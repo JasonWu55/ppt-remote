@@ -1,4 +1,4 @@
-import random
+import secrets
 import threading
 import customtkinter as ctk
 import pystray
@@ -157,7 +157,7 @@ class App(ctk.CTk):
     # ── Connector lifecycle ──────────────────────────────────────────────────
 
     def _new_pin(self) -> str:
-        return f'{random.randint(0, 9999):04d}'
+        return f'{secrets.randbelow(10000):04d}'
 
     def _start_connector(self, pin: str | None = None):
         if pin is None:

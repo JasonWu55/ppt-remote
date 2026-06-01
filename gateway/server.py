@@ -1,10 +1,11 @@
+import os
+import secrets
 from flask import Flask, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room
 from rooms import RoomManager
-import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'ppt-remote'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
 room_manager = RoomManager()
@@ -21,10 +22,11 @@ def socketio_js():
 
 
 def _get_client_ip() -> str:
-    raw = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-    if raw is None:
-        return '127.0.0.1'
-    return raw.split(',')[0].strip()
+    # Only trust X-Forwarded-For when an explicit reverse proxy is declared
+    if os.environ.get('TRUST_PROXY'):
+        raw = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        return (raw or '127.0.0.1').split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
 
 
 @socketio.on('register')
@@ -62,7 +64,7 @@ def on_key(data):
     gui_sid = room_manager.get_gui_sid(room_id)
     if gui_sid is None:
         return
-    action = data.get('action', '')
+    action = data.get('action', '')[:32]
     emit('key', {'action': action}, to=gui_sid)
     emit('ack', {'action': action})
 
