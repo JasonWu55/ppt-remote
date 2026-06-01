@@ -53,7 +53,7 @@ jobs:
           name: ppt-remote-linux
           path: gui-app/dist/ppt-remote
 
-  # Produces ppt-remote.app bundle (zipped) — double-click in Finder to run
+  # Produces ppt-remote.dmg — drag ppt-remote.app to Applications
   # Note: Gatekeeper will block unsigned app; right-click → Open to bypass
   build-macos:
     runs-on: macos-latest
@@ -71,14 +71,17 @@ jobs:
         run: |
           cd gui-app
           pyinstaller --onedir --windowed --name ppt-remote main.py
-      - name: Zip .app bundle
+      - name: Create DMG
         run: |
-          cd gui-app/dist
-          zip -r ppt-remote-macos.zip ppt-remote.app
+          hdiutil create \
+            -volname "PPT Remote" \
+            -srcfolder "gui-app/dist/ppt-remote.app" \
+            -ov -format UDZO \
+            "gui-app/dist/ppt-remote-macos.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: ppt-remote-macos
-          path: gui-app/dist/ppt-remote-macos.zip
+          path: gui-app/dist/ppt-remote-macos.dmg
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -103,12 +106,12 @@ jobs:
         run: |
           cp dist/windows/ppt-remote.exe dist/ppt-remote-windows.exe
           cp dist/linux/ppt-remote       dist/ppt-remote-linux
-          cp dist/macos/ppt-remote-macos.zip dist/ppt-remote-macos.zip
+          cp dist/macos/ppt-remote-macos.dmg dist/ppt-remote-macos.dmg
           chmod +x dist/ppt-remote-linux
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/ppt-remote-windows.exe
             dist/ppt-remote-linux
-            dist/ppt-remote-macos.zip
+            dist/ppt-remote-macos.dmg
           generate_release_notes: true
