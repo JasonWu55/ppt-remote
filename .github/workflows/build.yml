@@ -3,6 +3,7 @@ name: Build GUI App
 on:
   push:
     branches: [master]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -10,24 +11,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install dependencies
         run: |
           cd gui-app
           pip install -r requirements.txt
           pip install pyinstaller
-
       - name: Build
         run: |
           cd gui-app
           pyinstaller --onefile --noconsole --name ppt-remote main.py
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: ppt-remote-windows
           path: gui-app/dist/ppt-remote.exe
@@ -36,27 +32,75 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install system dependencies
         run: sudo apt-get install -y python3-tk
-
       - name: Install dependencies
         run: |
           cd gui-app
           pip install -r requirements.txt
           pip install pyinstaller
-
       - name: Build
         run: |
           cd gui-app
           pyinstaller --onefile --noconsole --name ppt-remote main.py
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: ppt-remote-linux
           path: gui-app/dist/ppt-remote
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          cd gui-app
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Build
+        run: |
+          cd gui-app
+          pyinstaller --onefile --noconsole --name ppt-remote main.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ppt-remote-macos
+          path: gui-app/dist/ppt-remote
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ppt-remote-windows
+          path: dist/windows/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ppt-remote-linux
+          path: dist/linux/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ppt-remote-macos
+          path: dist/macos/
+      - name: Prepare release assets
+        run: |
+          cp dist/windows/ppt-remote.exe dist/ppt-remote-windows.exe
+          cp dist/linux/ppt-remote      dist/ppt-remote-linux
+          cp dist/macos/ppt-remote      dist/ppt-remote-macos
+          chmod +x dist/ppt-remote-linux dist/ppt-remote-macos
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/ppt-remote-windows.exe
+            dist/ppt-remote-linux
+            dist/ppt-remote-macos
+          generate_release_notes: true
