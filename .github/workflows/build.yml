@@ -28,8 +28,10 @@ jobs:
           name: ppt-remote-windows
           path: gui-app/dist/ppt-remote.exe
 
+  # Build on ubuntu-20.04 (glibc 2.31) for broadest Linux compatibility
+  # Works on: Debian 11+, Ubuntu 20.04+, Fedora 33+, RHEL 8+, Arch, etc.
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,6 +53,8 @@ jobs:
           name: ppt-remote-linux
           path: gui-app/dist/ppt-remote
 
+  # Produces ppt-remote.app bundle (zipped) — double-click in Finder to run
+  # Note: Gatekeeper will block unsigned app; right-click → Open to bypass
   build-macos:
     runs-on: macos-latest
     steps:
@@ -63,14 +67,18 @@ jobs:
           cd gui-app
           pip install -r requirements.txt
           pip install pyinstaller
-      - name: Build
+      - name: Build .app bundle
         run: |
           cd gui-app
-          pyinstaller --onefile --noconsole --name ppt-remote main.py
+          pyinstaller --onedir --windowed --name ppt-remote main.py
+      - name: Zip .app bundle
+        run: |
+          cd gui-app/dist
+          zip -r ppt-remote-macos.zip ppt-remote.app
       - uses: actions/upload-artifact@v4
         with:
           name: ppt-remote-macos
-          path: gui-app/dist/ppt-remote
+          path: gui-app/dist/ppt-remote-macos.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -94,13 +102,13 @@ jobs:
       - name: Prepare release assets
         run: |
           cp dist/windows/ppt-remote.exe dist/ppt-remote-windows.exe
-          cp dist/linux/ppt-remote      dist/ppt-remote-linux
-          cp dist/macos/ppt-remote      dist/ppt-remote-macos
-          chmod +x dist/ppt-remote-linux dist/ppt-remote-macos
+          cp dist/linux/ppt-remote       dist/ppt-remote-linux
+          cp dist/macos/ppt-remote-macos.zip dist/ppt-remote-macos.zip
+          chmod +x dist/ppt-remote-linux
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/ppt-remote-windows.exe
             dist/ppt-remote-linux
-            dist/ppt-remote-macos
+            dist/ppt-remote-macos.zip
           generate_release_notes: true
