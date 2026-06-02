@@ -1,6 +1,6 @@
 services:
   gateway:
-    image: 192.168.1.250:5500/ppt-remote-gateway:v1
+    image: ghcr.io/jasonwu55/ppt-remote-gateway:latest
     ports:
       - "5000:5000"
     environment:

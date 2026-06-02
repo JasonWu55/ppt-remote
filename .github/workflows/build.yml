@@ -1,4 +1,4 @@
-name: Build GUI App
+name: Build
 
 on:
   push:
@@ -7,6 +7,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-gateway:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ppt-remote-gateway
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./gateway
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -109,7 +138,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-linux, build-macos-arm, build-macos-intel]
+    needs: [build-gateway, build-windows, build-linux, build-macos-arm, build-macos-intel]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -132,10 +161,10 @@ jobs:
           path: dist/macos-intel/
       - name: Prepare release assets
         run: |
-          cp dist/windows/ppt-remote.exe            dist/ppt-remote-windows.exe
-          cp dist/linux/ppt-remote                  dist/ppt-remote-linux
-          cp dist/macos-arm/ppt-remote-macos-arm.dmg     dist/ppt-remote-macos-arm.dmg
-          cp dist/macos-intel/ppt-remote-macos-intel.dmg dist/ppt-remote-macos-intel.dmg
+          cp dist/windows/ppt-remote.exe                  dist/ppt-remote-windows.exe
+          cp dist/linux/ppt-remote                        dist/ppt-remote-linux
+          cp dist/macos-arm/ppt-remote-macos-arm.dmg      dist/ppt-remote-macos-arm.dmg
+          cp dist/macos-intel/ppt-remote-macos-intel.dmg  dist/ppt-remote-macos-intel.dmg
           chmod +x dist/ppt-remote-linux
       - uses: softprops/action-gh-release@v2
         with:
