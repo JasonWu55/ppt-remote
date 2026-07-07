@@ -70,3 +70,18 @@ def test_press_end_wayland(mocker):
     mock_run = mocker.patch('subprocess.run')
     keyboard.press('end')
     mock_run.assert_called_once_with(['ydotool', 'key', 'KEY_ESC'], check=True)
+
+
+def test_press_wayland_ydotool_missing_does_not_raise(mocker):
+    mocker.patch('keyboard._is_wayland', return_value=True)
+    mocker.patch('subprocess.run',
+                 side_effect=FileNotFoundError('ydotool not found'))
+    keyboard.press('next')  # must not raise
+
+
+def test_press_wayland_ydotool_failure_does_not_raise(mocker):
+    import subprocess
+    mocker.patch('keyboard._is_wayland', return_value=True)
+    mocker.patch('subprocess.run',
+                 side_effect=subprocess.CalledProcessError(1, 'ydotool'))
+    keyboard.press('next')  # must not raise

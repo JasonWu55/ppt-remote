@@ -12,6 +12,7 @@ class Connector:
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
         self._on_mobile_count = on_mobile_count
+        self._stopped = threading.Event()
         self._sio = socketio.Client(reconnection=True, reconnection_delay=5)
         self._sio.on('connect', self._handle_connect)
         self._sio.on('registered', self._handle_registered)
@@ -44,11 +45,28 @@ class Connector:
         thread.start()
 
     def _run(self):
-        try:
-            self._sio.connect(self._gateway_url)
+        # socketio's automatic reconnection only applies after a successful
+        # first connect (connect() defaults to retry=False), so retry the
+        # initial connect ourselves with capped backoff.
+        delay = 1.0
+        while not self._stopped.is_set():
+            try:
+                self._sio.connect(self._gateway_url)
+            except Exception:
+                if self._stopped.is_set():
+                    return
+                self._on_disconnect()
+                self._stopped.wait(delay)
+                delay = min(delay * 2, 5.0)
+                continue
+            # disconnect() is a no-op while connect() is still in flight,
+            # so re-check the stop flag before settling into wait().
+            if self._stopped.is_set():
+                self._sio.disconnect()
+                return
             self._sio.wait()
-        except Exception:
-            pass
+            return
 
     def disconnect(self):
+        self._stopped.set()
         self._sio.disconnect()

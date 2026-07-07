@@ -25,7 +25,10 @@ def press(action: str) -> None:
     if _is_wayland():
         key = _YDOTOOL_MAP.get(action)
         if key:
-            subprocess.run(['ydotool', 'key', key], check=True)
+            try:
+                subprocess.run(['ydotool', 'key', key], check=True)
+            except (OSError, subprocess.CalledProcessError) as exc:
+                print(f'keyboard: ydotool failed ({exc})')
     else:
         key = _PYAUTOGUI_MAP.get(action)
         if key:

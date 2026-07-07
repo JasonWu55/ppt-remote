@@ -145,14 +145,7 @@ class App(ctk.CTk):
     def apply_settings(self):
         self._cfg = config.load()
         self._gw_label.configure(text=f'Gateway：{self._cfg["gateway_url"]}')
-        self._reconnect_with_new_url()
-
-    def _reconnect_with_new_url(self):
-        if self._connector:
-            self._connector.disconnect()
-        self._room_label.configure(text='----')
-        self._pin_label.configure(text='----')
-        self._start_connector()
+        self._regenerate_pin()
 
     # ── Connector lifecycle ──────────────────────────────────────────────────
 
